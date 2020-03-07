@@ -12,6 +12,7 @@ const connection = mysql.createConnection({
     database: "employees_db"
 })
 
+// main menu selection options
 const mainChoices = [
     "View All Employees",
     "View All Employees by Department",
@@ -25,26 +26,53 @@ const mainChoices = [
     "Remove Role",
     "Add Department",
     "View All Departments",
-    "Remove Departments",
+    "Remove Department",
     "Exit"
 ]
 
+// setup queries
 const setupTables = function(){
     let query;
-    // create employees table
-    query = connection.query(`CREATE TABLE IF NOT EXISTS employees(
+    
+    // employees table
+    query = connection.query(`
+        DROP TABLE IF EXISTS employees;`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
+    query = connection.query(`
+        CREATE TABLE employees(
         id INT NOT NULL AUTO_INCREMENT,
         first_name VARCHAR(30),
         last_name VARCHAR(30),
         role_id INT,
         manager_id INT,
         PRIMARY KEY(id)
-    );`,
-    function(err, res){
-        if (err) throw err;
-    });
+        );`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
+    query = connection.query(`
+        INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES
+        ("Austin", "Cox", 2, 1),
+        ("Jackson", "Pollock", 1, 1),
+        ("Matt", "Myers", 2, 2);`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
 
-    query = connection.query(`CREATE TABLE IF NOT EXISTS role(
+    // role table
+    query = connection.query(`
+        DROP TABLE role`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
+    query = connection.query(`
+        CREATE TABLE role(
         id INT NOT NULL AUTO_INCREMENT,
         title VARCHAR(30),
         salary DECIMAL,
@@ -53,22 +81,54 @@ const setupTables = function(){
         );`,
         function(err, res){
             if (err) throw err;
-        });
+        }
+    );
+    query = connection.query(`
+        INSERT INTO role(title, salary, department_id) VALUES
+        ("Aristocrat", 1000000.00, 1),
+        ("Engineer", 100000.00, 1),
+        ("Engineer", 90000.00, 2);`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
 
-    query = connection.query(`CREATE TABLE IF NOT EXISTS department(
+    // department table
+    query = connection.query(`
+        DROP TABLE department;`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
+    query = connection.query(`
+        CREATE TABLE department(
         id INT NOT NULL AUTO_INCREMENT,
         name VARCHAR(30),
         PRIMARY KEY(id)
         );`,
         function(err, res){
             if (err) throw err;
-        });
-    console.log("setup complete.")
+        }
+    );
+    query = connection.query(`
+        INSERT INTO department(name) VALUES
+        ("King Department"),
+        ("Mechanical Department")`,
+        function(err, res){
+            if (err) throw err;
+        }
+    );
+
+    console.log("setup complete.");
 }
 
+
+// main queries
+
+//first, last, title, department, salary, manager
 const viewEmployees = function(){
-    const query = connection.query(`SELECT first_name, last_name FROM employees
-    INNER JOIN role ON employees.id=role.id`,
+    const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees
+    INNER JOIN role ON employees.id=role.id INNER JOIN department ON employees.id=department.id`,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -82,7 +142,7 @@ const viewByDepartment = function(){
         if (err) throw err;
         console.table(res);
         promptTask();
-    })
+    });
 }
 
 const viewByManager = function(){
@@ -243,7 +303,7 @@ const main = async function() {
     connection.connect(function (err) {
         if (err) throw err;
         // console.log(`connection established as id ${connection.threadId}`);
-    })
+    });
     setupTables();
     promptTask();
 }
