@@ -44,9 +44,9 @@ const setupTables = function(){
     query = connection.query(`
         CREATE TABLE employees(
         id INT NOT NULL AUTO_INCREMENT,
-        first_name VARCHAR(30),
-        last_name VARCHAR(30),
-        role_id INT,
+        first_name VARCHAR(30) NOT NULL,
+        last_name VARCHAR(30) NOT NULL,
+        role_id INT NOT NULL,
         manager_id INT,
         PRIMARY KEY(id)
         );`,
@@ -74,9 +74,9 @@ const setupTables = function(){
     query = connection.query(`
         CREATE TABLE role(
         id INT NOT NULL AUTO_INCREMENT,
-        title VARCHAR(30),
-        salary DECIMAL,
-        department_id INT,
+        title VARCHAR(30) NOT NULL,
+        salary DECIMAL NOT NULL,
+        department_id INT NOT NULL,
         PRIMARY KEY(id)
         );`,
         function(err, res){
@@ -103,7 +103,7 @@ const setupTables = function(){
     query = connection.query(`
         CREATE TABLE department(
         id INT NOT NULL AUTO_INCREMENT,
-        name VARCHAR(30),
+        name VARCHAR(30) NOT NULL,
         PRIMARY KEY(id)
         );`,
         function(err, res){
@@ -128,7 +128,8 @@ const setupTables = function(){
 //first, last, title, department, salary, manager
 const viewEmployees = function(){
     const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees
-    INNER JOIN role ON employees.id=role.id INNER JOIN department ON employees.id=department.id`,
+    INNER JOIN role ON employees.role_id=role.id 
+    INNER JOIN department ON role.department_id=department.id`,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -136,8 +137,12 @@ const viewEmployees = function(){
     });
 }
 
-const viewByDepartment = function(){
-    const query = connection.query(``,
+const viewByDepartment = function(department){
+    const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees
+    INNER JOIN role ON employees.role_id=role.id 
+    INNER JOIN department ON role.department_id=department.id 
+    WHERE department.name=?;`,
+    department,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -145,8 +150,16 @@ const viewByDepartment = function(){
     });
 }
 
-const viewByManager = function(){
-    const query = connection.query(``,
+const viewByManager = function(manager){
+    let name = manager.split(" ")
+    if (name.length != 2){
+        throw console.error("invalid first and last name for manager");
+    }
+    const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees 
+    INNER JOIN role ON employees.role_id=role.id
+    INNER JOIN department ON role.department_id=department.id 
+    WHERE employees.manager_id=(SELECT manager_id from employees WHERE first_name=? AND last_name=?);`,
+    name,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -154,8 +167,44 @@ const viewByManager = function(){
     })
 }
 
-const addEmployee = function(){
-    const query = connection.query(``,
+const addEmployee = function(details){
+    // name, role title, role salary, department name, manager name
+    const query = connection.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) 
+    VALUES (?,?,?,?)`,
+    details.slice(0,4),
+    function(err, res){
+        if (err) throw err;
+        console.table(res);
+    });
+    query = connection.query(`INSERT INTO role(title, salary, department_id) 
+    VALUES (?, ?, ?)`,
+    details.slice(4,7),
+    function(err, res){
+        if (err) throw err;
+        console.table(res);
+    });
+    query = connection.query(`INSERT INTO department(name) 
+    VALUES (?)`,
+    details.slice(7),
+    function(err, res){
+        if (err) throw err;
+        console.table(res);
+        promptTask();
+    });
+    
+}
+
+const removeEmployee = function(name){
+    // name
+    let name = manager.split(" ")
+    if (name.length != 2){
+        throw console.error("invalid first and last name for manager");
+    }
+    const query = connection.query(`DELETE employees FROM employees
+    INNER JOIN role ON employees.role_id=role.id
+    INNER JOIN department ON role.department_id=department.id
+    WHERE (employees.first_name=? AND employees.last_name=?);`,
+    name,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -163,8 +212,17 @@ const addEmployee = function(){
     })
 }
 
-const removeEmployee = function(){
-    const query = connection.query(``,
+const updateRole = function(input){
+    // employee name (first/last), department, new role
+    // assume role is only unique to department level
+    // break name into first and last
+    const query = connection.query(`
+    UPDATE employees
+    INNER JOIN role ON employees.role_id=role.id
+    SET role_id=(SELECT id FROM role WHERE title=? 
+        AND role.department_id=(SELECT id FROM department WHERE name=?))
+    WHERE (employees.first_name=? AND employees.last_name=?);`,
+    [input[2],input[1],name[0],name[1]],
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -172,17 +230,13 @@ const removeEmployee = function(){
     })
 }
 
-const updateRole = function(){
-    const query = connection.query(``,
-    function(err, res){
-        if (err) throw err;
-        console.table(res);
-        promptTask();
-    })
-}
-
-const updateManager = function(){
-    const query = connection.query(``,
+const updateManager = function(names){
+    // name, manager name
+    const query = connection.query(`UPDATE employees
+    SET manager_id=(SELECT * FROM 
+        (SELECT id FROM employees WHERE first_name=? AND last_name=?) tmpTbl)
+    WHERE (first_name=? AND last_name=?);`,
+    names,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -191,7 +245,8 @@ const updateManager = function(){
 }
 
 const viewRoles = function(){
-    const query = connection.query(``,
+    const query = connection.query(`SELECT role.title, role.salary, department.name FROM role
+    INNER JOIN department ON department.id=role.department_id;`,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -200,7 +255,10 @@ const viewRoles = function(){
 }
 
 const addRole = function(){
-    const query = connection.query(``,
+    // title, salary, department name
+    const query = connection.query(`INSERT role(title, salary, department_id) VALUES
+    (?,?,(SELECT id FROM department WHERE name=?));`,
+    data,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -209,7 +267,11 @@ const addRole = function(){
 }
 
 const removeRole = function(){
-    const query = connection.query(``,
+    // title, department
+    const query = connection.query(`DELETE role FROM role
+    WHERE title=?
+    AND department_id=(SELECT id FROM department WHERE name=?);`,
+    data,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -218,7 +280,7 @@ const removeRole = function(){
 }
 
 const viewDepartments = function(){
-    const query = connection.query(``,
+    const query = connection.query(`SELECT name FROM department;`,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -226,8 +288,9 @@ const viewDepartments = function(){
     })
 }
 
-const addDepartment = function(){
-    const query = connection.query(``,
+const addDepartment = function(deptName){
+    const query = connection.query(`INSERT INTO department(name) VALUES (?);`,
+    deptName,
     function(err, res){
         if (err) throw err;
         console.table(res);
@@ -235,8 +298,10 @@ const addDepartment = function(){
     })
 }
 
-const removeDepartment = function(){
-    const query = connection.query(``,
+const removeDepartment = function(deptName){
+    const query = connection.query(`DELETE department FROM department
+    WHERE name=?;`,
+    deptName,
     function(err, res){
         if (err) throw err;
         console.table(res);
