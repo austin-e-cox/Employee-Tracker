@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "mysql": "latest",
-    "inquirer": "latest"
+    "inquirer": "latest",
+    "console.table": "latest"
   }
 }

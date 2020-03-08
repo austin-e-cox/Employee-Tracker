@@ -1,12 +1,13 @@
-const inquirer = require("inquirer")
-const mysql = require("mysql")
+const inquirer = require("inquirer");
+const mysql = require("mysql");
+const cTable = require('console.table');
 
 // const PORT = process.env.PORT || 3000;
-const mysqlPort = 3306
+const mysqlPort = 3306;
 
 const connection = mysql.createConnection({
     host: "localhost",
-    port: 3306,
+    port: mysqlPort,
     user: "root",
     password: "password1",
     database: "employees_db"
@@ -27,6 +28,7 @@ const mainChoices = [
     "Add Department",
     "View All Departments",
     "Remove Department",
+    "View Department Budget",
     "Exit"
 ]
 
@@ -56,9 +58,9 @@ const setupTables = function(){
     );
     query = connection.query(`
         INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES
-        ("Austin", "Cox", 2, 1),
-        ("Jackson", "Pollock", 1, 1),
-        ("Matt", "Myers", 2, 2);`,
+        ("AF", "AL", 3, 2),
+        ("BF", "BL", 1, 1),
+        ("CF", "CL", 2, 2);`,
         function(err, res){
             if (err) throw err;
         }
@@ -85,9 +87,9 @@ const setupTables = function(){
     );
     query = connection.query(`
         INSERT INTO role(title, salary, department_id) VALUES
-        ("Aristocrat", 1000000.00, 1),
-        ("Engineer", 100000.00, 1),
-        ("Engineer", 90000.00, 2);`,
+        ("R1", 1000000.00, 1),
+        ("R2", 100000.00, 3),
+        ("R2", 90000.00, 2);`,
         function(err, res){
             if (err) throw err;
         }
@@ -112,14 +114,14 @@ const setupTables = function(){
     );
     query = connection.query(`
         INSERT INTO department(name) VALUES
-        ("King Department"),
-        ("Mechanical Department")`,
+        ("D1"),
+        ("D2"),
+        ("D3")`,
         function(err, res){
             if (err) throw err;
         }
     );
-
-    console.log("setup complete.");
+    console.log("\n==============================\n    Tables have been reset.\n==============================\n");
 }
 
 
@@ -127,7 +129,7 @@ const setupTables = function(){
 
 //first, last, title, department, salary, manager
 const viewEmployees = function(){
-    const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees
+    const query = connection.query(`SELECT employees.first_name, employees.last_name, role.salary, role.title AS role, department.name AS department FROM employees
     INNER JOIN role ON employees.role_id=role.id 
     INNER JOIN department ON role.department_id=department.id`,
     function(err, res){
@@ -137,7 +139,17 @@ const viewEmployees = function(){
     });
 }
 
-const viewByDepartment = function(department){
+const viewByDepartment = async function(){
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: 'Enter department:',
+            name: 'department'
+        }
+    ]);
+    console.log(p);
+    let department = p.department;
+
     const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees
     INNER JOIN role ON employees.role_id=role.id 
     INNER JOIN department ON role.department_id=department.id 
@@ -150,15 +162,23 @@ const viewByDepartment = function(department){
     });
 }
 
-const viewByManager = function(manager){
-    let name = manager.split(" ")
+const viewByManager = async function(){
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: 'Enter manager name:',
+            name: 'manager'
+        }
+    ]);
+
+    let name = p.manager.split(" ")
     if (name.length != 2){
         throw console.error("invalid first and last name for manager");
     }
     const query = connection.query(`SELECT employees.first_name, employees.last_name, role.title, role.salary, department.name FROM employees 
     INNER JOIN role ON employees.role_id=role.id
     INNER JOIN department ON role.department_id=department.id 
-    WHERE employees.manager_id=(SELECT manager_id from employees WHERE first_name=? AND last_name=?);`,
+    WHERE employees.manager_id=(SELECT id from employees WHERE first_name=? AND last_name=?);`,
     name,
     function(err, res){
         if (err) throw err;
@@ -167,38 +187,66 @@ const viewByManager = function(manager){
     })
 }
 
-const addEmployee = function(details){
-    // name, role title, role salary, department name, manager name
+const addEmployee = async function(details){
+    // name, role title, manager name
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: 'Employee name:',
+            name: 'employee'
+        },
+        {
+            type: 'input',
+            message: 'Employee role:',
+            name: 'role'
+        },
+        {
+            type: 'input',
+            message: `Employee's department:`,
+            name: 'department'
+        },
+        {
+            type: 'input',
+            message: 'Employee manager:',
+            name: 'manager'
+        },
+    ]);
+
+    let employee = p.employee.split(" ")
+    if (employee.length != 2){
+        throw console.error("invalid first and last name for employee");
+    }
+    let manager = p.manager.split(" ")
+    if (manager.length != 2){
+        throw console.error("invalid first and last name for manager");
+    }
+
     const query = connection.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) 
-    VALUES (?,?,?,?)`,
-    details.slice(0,4),
+    VALUES (?,?,
+	(SELECT id FROM role WHERE role.title=? AND role.department_id=(SELECT id FROM department WHERE department.name=?)),
+    (SELECT * FROM (SELECT id from employees WHERE first_name=? AND last_name=?) tmpTbl));`,
+    [employee[0], employee[1], p.role, p.department, manager[0], manager[1]],
     function(err, res){
         if (err) throw err;
-        console.table(res);
-    });
-    query = connection.query(`INSERT INTO role(title, salary, department_id) 
-    VALUES (?, ?, ?)`,
-    details.slice(4,7),
-    function(err, res){
-        if (err) throw err;
-        console.table(res);
-    });
-    query = connection.query(`INSERT INTO department(name) 
-    VALUES (?)`,
-    details.slice(7),
-    function(err, res){
-        if (err) throw err;
-        console.table(res);
+        console.log(`Employee ${p.employee} added with role ${p.role}, in department ${p.department} and manager ${p.manger}`);
+        //console.table(res);
         promptTask();
     });
     
 }
 
-const removeEmployee = function(name){
+const removeEmployee = async function(){
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: 'Enter employee name:',
+            name: 'employee'
+        }
+    ]);
     // name
-    let name = manager.split(" ")
+    let name = p.employee.split(" ")
     if (name.length != 2){
-        throw console.error("invalid first and last name for manager");
+        throw console.error("invalid first and last name for employee");
     }
     const query = connection.query(`DELETE employees FROM employees
     INNER JOIN role ON employees.role_id=role.id
@@ -207,45 +255,91 @@ const removeEmployee = function(name){
     name,
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`employee: ${p.employee} deleted`);
         promptTask();
     })
 }
 
-const updateRole = function(input){
-    // employee name (first/last), department, new role
+// update employee role
+const updateEmployeeRole = async function(){
+    // employee name (first/last), new role
     // assume role is only unique to department level
     // break name into first and last
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Employee's name:`,
+            name: 'employee'
+        },
+        {
+            type: 'input',
+            message: `Employee's new role:`,
+            name: 'role'
+        },
+        {
+            type: 'input',
+            message: `Employee's department:`,
+            name: 'department'
+        },
+    ]);
+    
+    let name = p.employee.split(" ")
+    if (name.length != 2){
+        throw console.error("invalid first and last name for employee");
+    }
+
     const query = connection.query(`
     UPDATE employees
     INNER JOIN role ON employees.role_id=role.id
     SET role_id=(SELECT id FROM role WHERE title=? 
-        AND role.department_id=(SELECT id FROM department WHERE name=?))
+	    AND role.department_id=(SELECT id FROM department WHERE name=?))
     WHERE (employees.first_name=? AND employees.last_name=?);`,
-    [input[2],input[1],name[0],name[1]],
+    [p.role, p.department, name[0], name[1]],
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`employee:${p.employee}'s role updated to ${p.role}, ${p.department}`)
+        //console.table(res);
         promptTask();
     })
 }
 
-const updateManager = function(names){
-    // name, manager name
+const updateManager = async function(names){
+    //  manager name, employee name
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Employee's name:`,
+            name: 'employee'
+        },
+        {
+            type: 'input',
+            message: `Employee's new manager:`,
+            name: 'manager'
+        },
+    ]);
+    let employee = p.employee.split(" ")
+    if (employee.length != 2){
+        throw console.error("invalid first and last name for employee");
+    }
+    let manager = p.manager.split(" ")
+    if (manager.length != 2){
+        throw console.error("invalid first and last name for manager");
+    }
+
     const query = connection.query(`UPDATE employees
     SET manager_id=(SELECT * FROM 
         (SELECT id FROM employees WHERE first_name=? AND last_name=?) tmpTbl)
     WHERE (first_name=? AND last_name=?);`,
-    names,
+    [...manager, ...employee],
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`${p.employee}'s manager updated to ${p.manager}`);
         promptTask();
     })
 }
 
 const viewRoles = function(){
-    const query = connection.query(`SELECT role.title, role.salary, department.name FROM role
+    const query = connection.query(`SELECT role.title AS role, role.salary, department.name AS department FROM role
     INNER JOIN department ON department.id=role.department_id;`,
     function(err, res){
         if (err) throw err;
@@ -254,27 +348,59 @@ const viewRoles = function(){
     })
 }
 
-const addRole = function(){
+const addRole = async function(){
     // title, salary, department name
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Role Title:`,
+            name: 'title'
+        },
+        {
+            type: 'input',
+            message: `Salary:`,
+            name: 'salary'
+        },
+        {
+            type: 'input',
+            message: `Department:`,
+            name: 'department'
+        }
+    ]);
     const query = connection.query(`INSERT role(title, salary, department_id) VALUES
     (?,?,(SELECT id FROM department WHERE name=?));`,
-    data,
+    [p.title,p.salary,p.department],
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`Role ${p.title} with salary ${p.salary} added to department ${p.department}`)
+        //(res);
         promptTask();
     })
 }
 
-const removeRole = function(){
+const removeRole = async function(){
     // title, department
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Role name:`,
+            name: 'role',
+        },
+        {
+            type: 'input',
+            message: `Department name:`,
+            name: 'department'
+        }
+    ]);
+
     const query = connection.query(`DELETE role FROM role
     WHERE title=?
     AND department_id=(SELECT id FROM department WHERE name=?);`,
-    data,
+    [p.role, p.department],
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`role ${p.role} in department ${p.department} removed`);
+        //console.table(res);
         promptTask();
     })
 }
@@ -288,23 +414,60 @@ const viewDepartments = function(){
     })
 }
 
-const addDepartment = function(deptName){
+const addDepartment = async function(){
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Department name to add:`,
+            name: 'department'
+        }
+    ]);
+            
     const query = connection.query(`INSERT INTO department(name) VALUES (?);`,
-    deptName,
+    p.department,
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`department ${p.department} added`);
+        //console.table(res);
         promptTask();
     })
 }
 
-const removeDepartment = function(deptName){
+// const viewBudget = async function(){
+//     let p = await inquirer.prompt([
+//         {
+//             type: 'input',
+//             message: `Department:`,
+//             name: 'department'
+//         }
+//     ]);
+            
+//     const query = connection.query(`INSERT INTO department(name) VALUES (?);`,
+//     p.department,
+//     function(err, res){
+//         if (err) throw err;
+//         console.log(`department ${p.department} added`);
+//         //console.table(res);
+//         promptTask();
+//     })
+// }
+
+const removeDepartment = async function(deptName){
+    let p = await inquirer.prompt([
+        {
+            type: 'input',
+            message: `Department name to remove:`,
+            name: 'department'
+        }
+    ]);
+
     const query = connection.query(`DELETE department FROM department
     WHERE name=?;`,
-    deptName,
+    p.department,
     function(err, res){
         if (err) throw err;
-        console.table(res);
+        console.log(`department ${p.department} removed`);
+        //console.table(res);
         promptTask();
     })
 }
@@ -334,7 +497,7 @@ const promptTask = async function (){
             removeEmployee();
             break;
         case "Update Employee Role":
-            updateRole();
+            updateEmployeeRole();
             break;
         case "Update Employee Manager":
             updateManager();
@@ -357,11 +520,14 @@ const promptTask = async function (){
         case "Remove Department":
             removeDepartment();
             break;
+        //case "View Department Budget":
+        //    viewBudget();
+        //    break;
         case "Exit":
             connection.end();
             break; 
     }
-    console.log(answer);
+    //console.log(answer);
 }
 
 const main = async function() {
@@ -369,7 +535,12 @@ const main = async function() {
         if (err) throw err;
         // console.log(`connection established as id ${connection.threadId}`);
     });
-    setupTables();
+
+    if (process.argv.length > 2){
+        if (process.argv[2]==="--reset" || process.argv[2] === "-r"){
+            setupTables();
+        }    
+    }
     promptTask();
 }
 
