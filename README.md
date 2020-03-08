@@ -8,5 +8,5 @@ This application uses mysql to save and retrieve sql data across 3 different tab
 Repo: https://github.com/austin-e-cox/Employee-Tracker
 
 ## Preview
-![Page preview](/Employee-Tracker_preview.png?raw=true "Page Preview")
+![Page preview](/Employee-Tracker_preview.gif?raw=true "Page Preview")
 
