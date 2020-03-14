@@ -2,7 +2,6 @@ const inquirer = require("inquirer");
 const mysql = require("mysql");
 const cTable = require('console.table');
 
-// const PORT = process.env.PORT || 3000;
 const mysqlPort = 3306;
 
 const connection = mysql.createConnection({
@@ -124,9 +123,7 @@ const setupTables = function(){
     console.log("\n==============================\n    Tables have been reset.\n==============================\n");
 }
 
-
 // main queries
-
 //first, last, title, department, salary, manager
 const viewEmployees = function(){
     const query = connection.query(`SELECT employees.first_name, employees.last_name, role.salary, role.title AS role, department.name AS department FROM employees
@@ -229,7 +226,6 @@ const addEmployee = async function(details){
     function(err, res){
         if (err) throw err;
         console.log(`Employee ${p.employee} added with role ${p.role}, in department ${p.department} and manager ${p.manger}`);
-        //console.table(res);
         promptTask();
     });
     
@@ -243,7 +239,6 @@ const removeEmployee = async function(){
             name: 'employee'
         }
     ]);
-    // name
     let name = p.employee.split(" ")
     if (name.length != 2){
         throw console.error("invalid first and last name for employee");
@@ -298,11 +293,11 @@ const updateEmployeeRole = async function(){
     function(err, res){
         if (err) throw err;
         console.log(`employee:${p.employee}'s role updated to ${p.role}, ${p.department}`)
-        //console.table(res);
         promptTask();
     })
 }
 
+// update employee manager
 const updateManager = async function(names){
     //  manager name, employee name
     let p = await inquirer.prompt([
@@ -338,6 +333,7 @@ const updateManager = async function(names){
     })
 }
 
+// view roles
 const viewRoles = function(){
     const query = connection.query(`SELECT role.title AS role, role.salary, department.name AS department FROM role
     INNER JOIN department ON department.id=role.department_id;`,
@@ -348,6 +344,7 @@ const viewRoles = function(){
     })
 }
 
+// add a new role
 const addRole = async function(){
     // title, salary, department name
     let p = await inquirer.prompt([
@@ -373,11 +370,11 @@ const addRole = async function(){
     function(err, res){
         if (err) throw err;
         console.log(`Role ${p.title} with salary ${p.salary} added to department ${p.department}`)
-        //(res);
         promptTask();
     })
 }
 
+// remove a roll
 const removeRole = async function(){
     // title, department
     let p = await inquirer.prompt([
@@ -400,11 +397,11 @@ const removeRole = async function(){
     function(err, res){
         if (err) throw err;
         console.log(`role ${p.role} in department ${p.department} removed`);
-        //console.table(res);
         promptTask();
     })
 }
 
+// view departments
 const viewDepartments = function(){
     const query = connection.query(`SELECT name FROM department;`,
     function(err, res){
@@ -414,6 +411,7 @@ const viewDepartments = function(){
     })
 }
 
+// add a new department
 const addDepartment = async function(){
     let p = await inquirer.prompt([
         {
@@ -428,30 +426,11 @@ const addDepartment = async function(){
     function(err, res){
         if (err) throw err;
         console.log(`department ${p.department} added`);
-        //console.table(res);
         promptTask();
     })
 }
 
-// const viewBudget = async function(){
-//     let p = await inquirer.prompt([
-//         {
-//             type: 'input',
-//             message: `Department:`,
-//             name: 'department'
-//         }
-//     ]);
-            
-//     const query = connection.query(`INSERT INTO department(name) VALUES (?);`,
-//     p.department,
-//     function(err, res){
-//         if (err) throw err;
-//         console.log(`department ${p.department} added`);
-//         //console.table(res);
-//         promptTask();
-//     })
-// }
-
+// remove a department
 const removeDepartment = async function(deptName){
     let p = await inquirer.prompt([
         {
@@ -467,12 +446,11 @@ const removeDepartment = async function(deptName){
     function(err, res){
         if (err) throw err;
         console.log(`department ${p.department} removed`);
-        //console.table(res);
         promptTask();
     })
 }
 
-
+// passes chosen action off to applicable function
 const promptTask = async function (){
     let answer = await inquirer.prompt({
         name: "action",
@@ -520,20 +498,15 @@ const promptTask = async function (){
         case "Remove Department":
             removeDepartment();
             break;
-        //case "View Department Budget":
-        //    viewBudget();
-        //    break;
         case "Exit":
             connection.end();
             break; 
     }
-    //console.log(answer);
 }
 
 const main = async function() {
     connection.connect(function (err) {
         if (err) throw err;
-        // console.log(`connection established as id ${connection.threadId}`);
     });
 
     if (process.argv.length > 2){
