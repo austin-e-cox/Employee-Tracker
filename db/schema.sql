@@ -1,6 +1,6 @@
-create database if not exists employees_db;
+CREATE database IF NOT EXISTS employees_db;
 
-use employees_db;
+USE employees_db;
 
 DROP TABLE IF EXISTS employees;
 CREATE TABLE employees(
