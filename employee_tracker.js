@@ -12,12 +12,19 @@ const connection = mysql.createConnection({
   database: "employees_db"
 });
 
-ensureNumeric = function isNumeric(n) {
+let ensureNumeric = function isNumeric(n) {
   if (!isNaN(parseFloat(n)) && isFinite(n)) {
     return true;
   } else {
     return "not a valid number";
   }
+};
+
+let notBlank = function(data) {
+  if (data === "") {
+    return "name cannot be blank";
+  }
+  return true;
 };
 
 // main menu selection options
@@ -140,7 +147,6 @@ let getDepartments = function(role) {
         role,
         function(err, res) {
           if (err) reject(new Error(err));
-          console.log(res);
           let ra = new Set();
           res.forEach(item => ra.add(item.name));
           departments = [...ra];
@@ -150,7 +156,6 @@ let getDepartments = function(role) {
     } else {
       connection.query(`SELECT name FROM department`, function(err, res) {
         if (err) reject(new Error(err));
-        console.log(res);
         let ra = new Set();
         res.forEach(item => ra.add(item.name));
         departments = [...ra];
@@ -169,7 +174,6 @@ let getRoles = function(department) {
         role,
         function(err, res) {
           if (err) reject(new Error(err));
-          console.log(res);
           let ra = new Set();
           res.forEach(item => ra.add(item.title));
           resolve([...ra]);
@@ -178,7 +182,6 @@ let getRoles = function(department) {
     } else {
       connection.query(`SELECT title FROM role`, function(err, res) {
         if (err) reject(new Error(err));
-        console.log(res);
         let ra = new Set();
         res.forEach(item => ra.add(item.title));
         resolve([...ra]);
@@ -194,7 +197,6 @@ let getPeople = function() {
       res
     ) {
       if (err) reject(new Error(err));
-      console.log(res);
       let names = [];
       res.forEach(item =>
         names.push([item.first_name, item.last_name].join(" "))
@@ -221,6 +223,11 @@ const viewEmployees = function() {
 
 const viewByDepartment = async function() {
   departments = await getDepartments();
+  if (departments.length === 0) {
+    console.log(`no departments in the system, cannot vie by department`);
+    promptTask();
+    return;
+  }
   let p = await inquirer.prompt([
     {
       type: "list",
@@ -240,7 +247,7 @@ const viewByDepartment = async function() {
     function(err, res) {
       if (err) throw err;
       if (res.length === 0) {
-        console.log("department not found");
+        console.log("department has no employees\n");
       } else {
         console.table(res);
       }
@@ -251,6 +258,13 @@ const viewByDepartment = async function() {
 
 const viewByManager = async function() {
   let managers = await getPeople();
+  if (managers.length === 0) {
+    console.log(
+      `no people exist in the database, cannot view by person/manager`
+    );
+    promptTask();
+    return;
+  }
   let p = await inquirer.prompt([
     {
       type: "list",
@@ -270,7 +284,7 @@ const viewByManager = async function() {
     function(err, res) {
       if (err) throw err;
       if (res.length === 0) {
-        console.log("manager not found\n");
+        console.log("manager has no employees\n");
       } else {
         console.table(res);
       }
@@ -287,12 +301,14 @@ const addEmployee = async function(details) {
     {
       type: "input",
       message: "Employee first name:",
-      name: "employeeFirst"
+      name: "employeeFirst",
+      validate: notBlank
     },
     {
       type: "input",
       message: "Employee last name:",
-      name: "employeeLast"
+      name: "employeeLast",
+      validate: notBlank
     },
     {
       type: "list",
@@ -301,7 +317,15 @@ const addEmployee = async function(details) {
       choices: roles
     }
   ]);
+  //ensure we didn't delete the associated deparmtnet earlier
   let departments = await getDepartments(p.role);
+  if (departments.length === 0) {
+    console.log(
+      `role ${p.role} is not associated to a department, please recreate the department or alter the role`
+    );
+    promptTask();
+    return;
+  }
   let p2 = await inquirer.prompt([
     {
       type: "list",
@@ -334,7 +358,7 @@ const addEmployee = async function(details) {
     function(err, res) {
       if (err) throw err;
       console.log(
-        `Employee ${p.employeeFirst} ${p.employeeLast} added with role ${p.role}, in department ${p.department} with manager ${p.managerFirst} ${p.managerLast}`
+        `Employee ${p.employeeFirst} ${p.employeeLast} added with role ${p.role}, in department ${p.department} with manager ${p.managerFirst} ${p.managerLast}\n`
       );
       promptTask();
     }
@@ -374,6 +398,21 @@ const removeEmployee = async function() {
 const updateEmployeeRole = async function() {
   let roles = await getRoles();
   let employees = await getPeople();
+  //ensure we have roles and employees
+  if (employees.length === 0) {
+    console.log(
+      `no employees, please add at least 1 employee before trying to alter employee data`
+    );
+    promptTask();
+    return;
+  }
+  if (roles.length === 0) {
+    console.log(
+      `no roles, please add at least 1 role before trying to alter employee data`
+    );
+    promptTask();
+    return;
+  }
   // employee name (first/last), new role
   // assume role is only unique to department level
   // break name into first and last
@@ -392,6 +431,13 @@ const updateEmployeeRole = async function() {
     }
   ]);
   let departments = await getDepartments(p.role);
+  if (departments.length === 0) {
+    console.log(
+      `role ${p.role} is not associated to a department, please recreate the department or alter the role`
+    );
+    promptTask();
+    return;
+  }
   let p2 = await inquirer.prompt([
     {
       type: "list",
@@ -415,7 +461,7 @@ const updateEmployeeRole = async function() {
         console.log("Could not update role based on the given information.\n");
       } else {
         console.log(
-          `employee: ${p.employeeFirst} ${p.employeeLast}'s role updated to ${p.role}, ${p.department}`
+          `employee: ${p.employeeFirst} ${p.employeeLast}'s role updated to ${p.role}, ${p.department}\n`
         );
       }
       promptTask();
@@ -441,6 +487,13 @@ const updateManager = async function(names) {
       choices: employees
     }
   ]);
+  if (p.employee === p.manager) {
+    console.log(
+      `A lot of people say 'I'm my own boss', but unfortunately we don't believe in that around here`
+    );
+    promptTask();
+    return;
+  }
   employee = p.employee.split(" ");
   manager = p.manager.split(" ");
 
@@ -481,20 +534,26 @@ const viewRoles = function() {
 // add a new role
 const addRole = async function() {
   let departments = await getDepartments();
+  if (departments.length === 0) {
+    console.log(
+      `no departments exist, please create a department before trying to add a role (which needs to be associated to a department)`
+    );
+    promptTask();
+    return;
+  }
   // title, salary, department name
   let p = await inquirer.prompt([
     {
       type: "input",
       message: "Specify the role", // before when
-      name: "title"
+      name: "title",
+      validate: notBlank
     },
     {
       type: "input",
       message: `Salary:`,
       name: "salary",
-      validate: function(data) {
-        return ensureNumeric(data);
-      }
+      validate: ensureNumeric
     },
     {
       type: "list",
@@ -521,6 +580,11 @@ const addRole = async function() {
 // remove a roll
 const removeRole = async function() {
   let roles = await getRoles(null);
+  if (roles.length === 0) {
+    console.log(`no roles to remove...`);
+    promptTask();
+    return;
+  }
   // title, department
   let p = await inquirer.prompt([
     {
@@ -532,6 +596,13 @@ const removeRole = async function() {
   ]);
 
   departments = await getDepartments(p.title);
+  if (departments.length === 0) {
+    console.log(
+      `role ${p.role} is not associated to a department, please ensure it is associated to a department before deletion. We have to know it's department name/id in order to delete it`
+    );
+    promptTask();
+    return;
+  }
   let p2 = await inquirer.prompt([
     {
       type: "list",
@@ -576,7 +647,8 @@ const addDepartment = async function() {
     {
       type: "input",
       message: `Department name to add:`,
-      name: "department"
+      name: "department",
+      validate: notBlank
     }
   ]);
 
@@ -594,6 +666,13 @@ const addDepartment = async function() {
 // remove a department
 const removeDepartment = async function(deptName) {
   let departments = await getDepartments();
+  if (departments.length === 0) {
+    console.log(
+      `no departments exist currently, cannot delete what does not exist`
+    );
+    promptTask();
+    return;
+  }
   let p = await inquirer.prompt([
     {
       type: "list",
@@ -612,7 +691,7 @@ const removeDepartment = async function(deptName) {
       if (res.affectedRows === 0) {
         console.log("Could not find department, nothing deleted.\n");
       } else {
-        console.log(`department ${p.department} removed`);
+        console.log(`department ${p.department} removed\n`);
       }
       promptTask();
     }
