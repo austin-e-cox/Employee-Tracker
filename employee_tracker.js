@@ -224,7 +224,7 @@ const viewEmployees = function() {
 const viewByDepartment = async function() {
   departments = await getDepartments();
   if (departments.length === 0) {
-    console.log(`no departments in the system, cannot vie by department`);
+    console.log(`no departments in the system, cannot vie by department\n`);
     promptTask();
     return;
   }
@@ -260,7 +260,7 @@ const viewByManager = async function() {
   let managers = await getPeople();
   if (managers.length === 0) {
     console.log(
-      `no people exist in the database, cannot view by person/manager`
+      `no people exist in the database, cannot view by person/manager\n`
     );
     promptTask();
     return;
@@ -321,7 +321,7 @@ const addEmployee = async function(details) {
   let departments = await getDepartments(p.role);
   if (departments.length === 0) {
     console.log(
-      `role ${p.role} is not associated to a department, please recreate the department or alter the role`
+      `role ${p.role} is not associated to a department, please recreate the department or alter the role\n`
     );
     promptTask();
     return;
@@ -387,7 +387,7 @@ const removeEmployee = async function() {
       if (res.affectedRows === 0) {
         console.log("The employee entered does not exist, nothing updated.\n");
       } else {
-        console.log(`employee: ${p.employeeFirst} ${p.employeeLast} deleted`);
+        console.log(`employee: ${p.employeeFirst} ${p.employeeLast} deleted\n`);
       }
       promptTask();
     }
@@ -401,14 +401,14 @@ const updateEmployeeRole = async function() {
   //ensure we have roles and employees
   if (employees.length === 0) {
     console.log(
-      `no employees, please add at least 1 employee before trying to alter employee data`
+      `no employees, please add at least 1 employee before trying to alter employee data\n`
     );
     promptTask();
     return;
   }
   if (roles.length === 0) {
     console.log(
-      `no roles, please add at least 1 role before trying to alter employee data`
+      `no roles, please add at least 1 role before trying to alter employee data\n`
     );
     promptTask();
     return;
@@ -433,7 +433,7 @@ const updateEmployeeRole = async function() {
   let departments = await getDepartments(p.role);
   if (departments.length === 0) {
     console.log(
-      `role ${p.role} is not associated to a department, please recreate the department or alter the role`
+      `role ${p.role} is not associated to a department, please recreate the department or alter the role\n`
     );
     promptTask();
     return;
@@ -489,7 +489,7 @@ const updateManager = async function(names) {
   ]);
   if (p.employee === p.manager) {
     console.log(
-      `A lot of people say 'I'm my own boss', but unfortunately we don't believe in that around here`
+      `A lot of people say 'I'm my own boss', but unfortunately we don't believe in that around here\n`
     );
     promptTask();
     return;
@@ -536,7 +536,7 @@ const addRole = async function() {
   let departments = await getDepartments();
   if (departments.length === 0) {
     console.log(
-      `no departments exist, please create a department before trying to add a role (which needs to be associated to a department)`
+      `no departments exist, please create a department before trying to add a role (which needs to be associated to a department)\n`
     );
     promptTask();
     return;
@@ -581,7 +581,7 @@ const addRole = async function() {
 const removeRole = async function() {
   let roles = await getRoles(null);
   if (roles.length === 0) {
-    console.log(`no roles to remove...`);
+    console.log(`no roles to remove...\n`);
     promptTask();
     return;
   }
@@ -598,7 +598,7 @@ const removeRole = async function() {
   departments = await getDepartments(p.title);
   if (departments.length === 0) {
     console.log(
-      `role ${p.role} is not associated to a department, please ensure it is associated to a department before deletion. We have to know it's department name/id in order to delete it`
+      `role ${p.role} is not associated to a department, please ensure it is associated to a department before deletion. We have to know it's department name/id in order to delete it\n`
     );
     promptTask();
     return;
@@ -668,7 +668,7 @@ const removeDepartment = async function(deptName) {
   let departments = await getDepartments();
   if (departments.length === 0) {
     console.log(
-      `no departments exist currently, cannot delete what does not exist`
+      `no departments exist currently, cannot delete what does not exist\n`
     );
     promptTask();
     return;
